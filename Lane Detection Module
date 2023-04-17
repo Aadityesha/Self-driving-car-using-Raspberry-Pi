@@ -1,0 +1,48 @@
+import cv2
+import numpy as np
+
+class LaneDetector:
+    def __init__(self, video_path, display=2):
+        self.video_path = video_path
+        self.display = display
+        self.curve_list = []
+        self.avg_val = 10
+        self.initial_trackbar_vals = [102, 80, 20, 214]
+        self.points = self._initialize_trackbars()
+        
+    def _initialize_trackbars(self):
+        def nothing(x):
+            pass
+        
+        cv2.namedWindow("Trackbars")
+        cv2.resizeWindow("Trackbars", 360, 240)
+        cv2.createTrackbar("Width Top", "Trackbars", self.initial_trackbar_vals[0], 200, nothing)
+        cv2.createTrackbar("Height Top", "Trackbars", self.initial_trackbar_vals[1], 200, nothing)
+        cv2.createTrackbar("Width Bottom", "Trackbars", self.initial_trackbar_vals[2], 200, nothing)
+        cv2.createTrackbar("Height Bottom", "Trackbars", self.initial_trackbar_vals[3], 200, nothing)
+        points = np.float32([(self.initial_trackbar_vals[0], self.initial_trackbar_vals[1]),
+                             (self.initial_trackbar_vals[2], self.initial_trackbar_vals[3]),
+                             (640 - self.initial_trackbar_vals[2], self.initial_trackbar_vals[3]),
+                             (640 - self.initial_trackbar_vals[0], self.initial_trackbar_vals[1])])
+        return points
+
+    def _warp_image(self, img):
+        h, w = img.shape[:2]
+        img_size = (w, h)
+        src = np.float32([(0, 0), (w, 0), (0, h), (w, h)])
+        matrix = cv2.getPerspectiveTransform(src, self.points)
+        warped = cv2.warpPerspective(img, matrix, img_size)
+        return warped
+
+    def _thresholding(self, img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        canny = cv2.Canny(blur, 50, 150)
+        kernel = np.ones((5, 5), np.uint8)
+        closing = cv2.morphologyEx(canny, cv2.MORPH_CLOSE, kernel)
+        return closing
+
+    def _get_histogram(self, img, display=False, min_per=0.5, region=4):
+        histogram = np.sum(img[img.shape[0] // region:, :], axis=0)
+        midpoint = np.int32(histogram.shape[0] / 2)
+        leftx_base = np.argmax(h
